@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>概估計算機 — L2 室內裝修工程估價</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.9/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1923;
+    color: #e8e0d5;
+    min-height: 100vh;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const CASE_TYPES = [
+  { id: 'full', label: '全室翻新', desc: '全屋拆除重做' },
+  { id: 'partial', label: '局部翻新', desc: '浴室全換、廚房改造、主臥重做' },
+  { id: 'light', label: '輕裝修', desc: '油漆、地板、燈具、局部木作' },
+  { id: 'new', label: '新成屋客變', desc: '格局調整、廚浴升級' },
+];
+
+const BASE_RATES = {
+  full:    { basic: [8, 12],   mid: [12, 18],  high: [18, 28] },
+  partial: { basic: [5, 8],    mid: [8, 14],   high: [14, 25] },
+  light:   { basic: [2, 4],    mid: [4, 7],    high: [7, 12]  },
+  new:     { basic: [4, 7],    mid: [7, 12],   high: [12, 20] },
+};
+
+const GRADE_LABELS = { basic: '基本', mid: '中等', high: '高規' };
+
+const ADJUSTMENTS = [
+  { id: 'old', label: '屋齡超過20年', factor: 1.15, desc: '老屋加成 +15%' },
+  { id: 'complex', label: '格局複雜異動', factor: 1.12, desc: '格局加成 +12%' },
+  { id: 'highfloor', label: '高樓層無電梯', factor: 1.08, desc: '搬運加成 +8%' },
+  { id: 'import', label: '指定進口建材', factor: 1.20, desc: '建材加成 +20%' },
+];
+
+function QuickEstimate() {
+  const [caseType, setCaseType] = useState('full');
+  const [grade, setGrade] = useState('mid');
+  const [area, setArea] = useState('');
+  const [adjustments, setAdjustments] = useState([]);
+
+  const toggleAdj = (id) => setAdjustments(prev =>
+    prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+  );
+
+  const calcResult = () => {
+    const a = parseFloat(area);
+    if (!a || a <= 0) return null;
+    const [lo, hi] = BASE_RATES[caseType][grade];
+    const factor = adjustments.reduce((f, id) => {
+      const adj = ADJUSTMENTS.find(a => a.id === id);
+      return adj ? f * adj.factor : f;
+    }, 1);
+    return {
+      low: Math.round(lo * a * factor),
+      high: Math.round(hi * a * factor),
+      perPing: [Math.round(lo * factor), Math.round(hi * factor)],
+    };
+  };
+
+  const result = calcResult();
+  const fmt = (n) => (n * 10000).toLocaleString();
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px' }}>
+      {/* 頂部標題 */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ fontSize: 10, color: 'rgba(180,150,100,0.5)', letterSpacing: 3, marginBottom: 8, textTransform: 'uppercase' }}>L2 室內裝修</div>
+        <h1 style={{ fontSize: 24, fontWeight: 400, color: '#b49664', marginBottom: 8 }}>概估計算機</h1>
+        <p style={{ fontSize: 13, color: 'rgba(232,224,213,0.4)', lineHeight: 1.6 }}>
+          快速估算裝修費用區間，用於與客人初步溝通預算
+        </p>
+      </div>
+
+      {/* 裝修類型 */}
+      <div style={{ marginBottom: 28 }}>
+        <label style={{ display: 'block', fontSize: 11, color: '#b49664', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' }}>裝修類型</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+          {CASE_TYPES.map(ct => (
+            <button key={ct.id} onClick={() => setCaseType(ct.id)} style={{
+              padding: '14px 10px', borderRadius: 10, textAlign: 'center',
+              border: `1px solid ${caseType === ct.id ? '#b49664' : 'rgba(180,150,100,0.2)'}`,
+              background: caseType === ct.id ? 'rgba(180,150,100,0.12)' : 'transparent',
+              color: caseType === ct.id ? '#b49664' : 'rgba(232,224,213,0.5)',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{ct.label}</div>
+              <div style={{ fontSize: 10, color: 'rgba(232,224,213,0.35)', lineHeight: 1.4 }}>{ct.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 等級 + 坪數 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, color: '#b49664', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>裝修等級</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {Object.entries(GRADE_LABELS).map(([k, v]) => (
+              <button key={k} onClick={() => setGrade(k)} style={{
+                flex: 1, padding: '10px 0', borderRadius: 8,
+                border: `1px solid ${grade === k ? '#b49664' : 'rgba(180,150,100,0.2)'}`,
+                background: grade === k ? 'rgba(180,150,100,0.15)' : 'transparent',
+                color: grade === k ? '#b49664' : 'rgba(232,224,213,0.5)',
+                fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+              }}>{v}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, color: '#b49664', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>室內坪數</label>
+          <input type="number" value={area} onChange={e => setArea(e.target.value)}
+            placeholder="請輸入坪數"
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(180,150,100,0.2)', borderRadius: 8, color: '#e8e0d5', fontSize: 14, outline: 'none' }} />
+        </div>
+      </div>
+
+      {/* 加成 */}
+      <div style={{ marginBottom: 36 }}>
+        <label style={{ display: 'block', fontSize: 11, color: '#b49664', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' }}>特殊加成（可複選）</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {ADJUSTMENTS.map(adj => (
+            <button key={adj.id} onClick={() => toggleAdj(adj.id)} style={{
+              padding: '7px 14px', borderRadius: 16,
+              border: `1px solid ${adjustments.includes(adj.id) ? '#b49664' : 'rgba(180,150,100,0.2)'}`,
+              background: adjustments.includes(adj.id) ? 'rgba(180,150,100,0.15)' : 'transparent',
+              color: adjustments.includes(adj.id) ? '#b49664' : 'rgba(232,224,213,0.5)',
+              fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              {adjustments.includes(adj.id) ? '✓ ' : ''}{adj.label}
+              <span style={{ fontSize: 10, marginLeft: 4, color: 'rgba(232,224,213,0.3)' }}>{adj.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 結果 */}
+      {result ? (
+        <div style={{ padding: 28, background: 'rgba(180,150,100,0.08)', border: '1px solid rgba(180,150,100,0.25)', borderRadius: 16 }}>
+          <div style={{ fontSize: 11, color: 'rgba(232,224,213,0.4)', letterSpacing: 1, marginBottom: 16, textTransform: 'uppercase' }}>概估費用區間</div>
+          <div style={{ fontSize: 36, fontWeight: 700, color: '#b49664', marginBottom: 8 }}>
+            {result.low}–{result.high} <span style={{ fontSize: 16, fontWeight: 400 }}>萬元</span>
+          </div>
+          <div style={{ fontSize: 13, color: 'rgba(232,224,213,0.5)' }}>
+            每坪造價約 {result.perPing[0]}–{result.perPing[1]} 萬元
+          </div>
+          <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(232,224,213,0.3)', lineHeight: 1.8 }}>
+            此為廠商成本概估區間，不含設計費與工程管理費。<br />
+            實際報價需依詳細設計決策與現場條件調整。
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: 28, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(180,150,100,0.1)', borderRadius: 16, textAlign: 'center', color: 'rgba(232,224,213,0.2)', fontSize: 13 }}>
+          輸入坪數後顯示概估結果
+        </div>
+      )}
+
+      {/* 底部 */}
+      <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid rgba(180,150,100,0.1)', textAlign: 'center' }}>
+        <div style={{ fontSize: 10, color: 'rgba(232,224,213,0.2)', lineHeight: 1.8 }}>
+          風間設計 Windsroom Interior Design<br />
+          此工具僅供初步溝通參考，不構成正式報價
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<QuickEstimate />);
+</script>
+</body>
+</html>
